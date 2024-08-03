@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img src="https://github.com/devanshbatham/headerpwn/blob/main/static/banner.png?raw=true" alt="headerpwn" />
+  <img src="https://github.com/tucommenceapousser/headerpwn/blob/main/static/Screenshot_2024-08-03-18-33-42-021_com.android.chrome-edit.jpg?raw=true" alt="headerpwn" />
 </p>
 
 ## Install
