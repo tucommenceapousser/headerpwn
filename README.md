@@ -32,6 +32,10 @@ go install github.com/tucommenceapousser/headerpwn@v0.0.3
 3. **Specify the Request Catcher URL** with the `-catcher` flag to monitor for XSS attacks.
 
 Example usage:
+build with the command
+```
+go build -o headerpwn main.go
+```
 
 ```sh
 ./headerpwn -url https://www.alsetex.fr -headers header-catch.txt -catcher https://a47da360-e441-41d7-a30b-2c0e4b8e8a34-00-1j353q5zm79dz.pike.replit.dev/__xss_detected__ -output xss_results.txt
