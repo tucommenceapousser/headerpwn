@@ -34,7 +34,7 @@ go install github.com/tucommenceapousser/headerpwn@v0.0.3
 Example usage:
 build with the command
 ```
-go build -o headerpwn main.go
+go build -o headerpwn main.go && chmod +x headerpwn
 ```
 
 ```sh
