@@ -1,20 +1,20 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/fatih/color"
-	"io"
-	"math/rand"
-	"os"
-	"bufio"
 )
 
 type Result struct {
@@ -22,28 +22,34 @@ type Result struct {
 	Header        string
 	StatusCode    int
 	ContentLength int64
+	Body          string
 }
 
 func main() {
 	urlPtr := flag.String("url", "", "URL to make requests to")
 	headersFilePtr := flag.String("headers", "", "File containing headers for requests")
 	proxyPtr := flag.String("proxy", "", "Proxy server IP:PORT (e.g., 127.0.0.1:8080)")
+	requestCatcherURL := flag.String("catcher", "", "URL of the Request Catcher to verify XSS execution")
+	outputFilePtr := flag.String("output", "xss_results.txt", "File to save XSS detection results")
 	quietPtr := flag.Bool("q", false, "Suppress banner")
 	flag.Parse()
 	log.SetFlags(0)
-	    // Print tool banner
 
-    if !*quietPtr {
-    log.Print(`
-
-
-	   __               __                      
-	  / /  ___ ___  ___/ /__ _______ _    _____ 
-	 / _ \/ -_) _ \/ _  / -_) __/ _ \ |/|/ / _ \
-	/_//_/\__/\_,_/\_,_/\__/_/ / .__/__,__/_//_/
-	                          /_/               
-    
-`)
+	red := color.New(color.FgRed).SprintFunc()
+	green := color.New(color.FgGreen).SprintFunc()
+	yellow := color.New(color.FgYellow).SprintFunc()
+	blue := color.New(color.FgBlue).SprintFunc()
+	magenta := color.New(color.FgMagenta).SprintFunc()
+	cyan := color.New(color.FgCyan).SprintFunc()
+	// Print tool banner
+	if !*quietPtr {
+		fmt.Println(yellow(`
+			`) + red(` __`) + yellow(`               `) + red(` __`) + yellow(`                      
+		`) + green(`/ /  ___ ___  ___/ /__ _______ _    _____ 
+	 `) + blue(`/ _ \/ -_) _ \/ _  / -_) __/ _ \ |/|/ / _ \
+	`)+ magenta(`/_//_/\__/\_,_/\_,_/\__/_/ / .__/__,__/_//_/
+		`) + cyan(`TRHACKNON       /_/               
+	`))
 	}
 
 	if *urlPtr == "" {
@@ -56,21 +62,37 @@ func main() {
 		return
 	}
 
+	if *requestCatcherURL == "" {
+		fmt.Println("Please provide a valid Request Catcher URL using the -catcher flag")
+		return
+	}
+
 	headers, err := readHeadersFromFile(*headersFilePtr)
 	if err != nil {
 		fmt.Println("Error reading headers:", err)
 		return
 	}
 
+	// Create variations of XSS payloads
+	variationHeaders := []string{}
+	for _, header := range headers {
+		variationHeaders = append(variationHeaders, header)
+		// Adding variations with `>`, `'>`, and other characters
+		variationHeaders = append(variationHeaders,
+			strings.ReplaceAll(header, "<script", `"><script`),
+			strings.ReplaceAll(header, "<script", `'><script`),
+		)
+	}
+
 	var wg sync.WaitGroup
 	results := make(chan Result)
 
-	for _, header := range headers {
+	for _, header := range variationHeaders {
 		wg.Add(1)
 		go func(header string) {
 			defer wg.Done()
 
-			response, err := makeRequest(*urlPtr, header, *proxyPtr)
+			response, body, err := makeRequest(*urlPtr, header, *proxyPtr)
 			if err != nil {
 				return
 			}
@@ -80,6 +102,7 @@ func main() {
 				Header:        header,
 				StatusCode:    response.StatusCode,
 				ContentLength: response.ContentLength,
+				Body:          body,
 			}
 			results <- result
 		}(header)
@@ -90,7 +113,14 @@ func main() {
 		close(results)
 	}()
 
-	printResults(results)
+	outputFile, err := os.Create(*outputFilePtr)
+	if err != nil {
+		fmt.Println("Error creating output file:", err)
+		return
+	}
+	defer outputFile.Close()
+
+	printResults(results, *requestCatcherURL, outputFile)
 }
 
 func readHeadersFromFile(filename string) ([]string, error) {
@@ -113,13 +143,13 @@ func readHeadersFromFile(filename string) ([]string, error) {
 	return headers, nil
 }
 
-func makeRequest(baseURL, header, proxy string) (*http.Response, error) {
+func makeRequest(baseURL, header, proxy string) (*http.Response, string, error) {
 	urlWithBuster := baseURL + "?cachebuster=" + generateCacheBuster()
 	headers := parseHeaders(header)
 
 	req, err := http.NewRequest("GET", urlWithBuster, nil)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	for _, h := range headers {
@@ -134,7 +164,7 @@ func makeRequest(baseURL, header, proxy string) (*http.Response, error) {
 		proxyURL, err := url.Parse("http://" + proxy)
 		if err != nil {
 			fmt.Println("Error parsing proxy URL:", err)
-			return nil, err
+			return nil, "", err
 		}
 		transport := &http.Transport{Proxy: http.ProxyURL(proxyURL)}
 		client = &http.Client{Transport: transport}
@@ -142,18 +172,16 @@ func makeRequest(baseURL, header, proxy string) (*http.Response, error) {
 
 	response, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, "", err
+	}
+	defer response.Body.Close()
+
+	bodyBytes, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, "", err
 	}
 
-	if response.ContentLength >= 0 {
-		return response, nil
-	}
-
-	body, err := io.ReadAll(response.Body)
-	if err == nil {
-		response.ContentLength = int64(len(body))
-	}
-	return response, nil
+	return response, string(bodyBytes), nil
 }
 
 func parseHeaders(header string) []string {
@@ -170,7 +198,7 @@ func generateCacheBuster() string {
 	return string(b)
 }
 
-func printResults(results <-chan Result) {
+func printResults(results <-chan Result, requestCatcherURL string, outputFile *os.File) {
 	red := color.New(color.FgRed).SprintFunc()
 	green := color.New(color.FgGreen).SprintFunc()
 	magenta := color.New(color.FgMagenta).SprintFunc()
@@ -195,5 +223,29 @@ func printResults(results <-chan Result) {
 
 		resultOutput := fmt.Sprintf("%s %s %s %s", statusOutput, contentLengthOutput, headerOutput, urlOutput)
 		fmt.Println(resultOutput)
+
+		if detectXSS(requestCatcherURL) {
+			xssDetected := fmt.Sprintf("Potential XSS detected with header: %s\n", result.Header)
+			fmt.Println(red(xssDetected))
+			outputFile.WriteString(xssDetected)
+		}
 	}
+}
+
+func detectXSS(requestCatcherURL string) bool {
+	resp, err := http.Get(requestCatcherURL + "/__xss_detected__")
+	if err != nil {
+		fmt.Println("Error checking Request Catcher:", err)
+		return false
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error reading response body:", err)
+		return false
+	}
+
+	bodyStr := string(bodyBytes)
+	return strings.Contains(bodyStr, "xss_detected")
 }
